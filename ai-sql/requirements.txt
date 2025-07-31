@@ -1,0 +1,32 @@
+# AI Frameworks
+langchain
+llama-index
+crewai
+chromadb
+
+#LLM & Embeddings
+openai
+transformers
+sentence-transformers
+
+#Backend API
+fastapi
+uvicorn
+pydantic
+
+#Database
+sqlalchemy
+psycopg2-binary
+pyodbc
+mysql-connector-python
+snowflake-connector-python
+
+#Additinal Tools
+tqdm
+python-dotenv
+loguru
+
+#Testing
+pytest
+sqlparse
+streamlit
