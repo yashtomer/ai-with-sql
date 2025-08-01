@@ -27,7 +27,7 @@ try:
 except requests.exceptions.ConnectionError:
     st.sidebar.error("Could not connect to the FastAPI backend. Please ensure it's running.")
 
-selected_database = st.sidebar.selectbox("Select a Database", [""] + databases)
+selected_database = st.sidebar.selectbox("Select a Database", [""] + databases, index=([""] + databases).index("getlicense") if "getlicense" in databases else 0)
 
 if selected_database:
     st.session_state["selected_database"] = selected_database
