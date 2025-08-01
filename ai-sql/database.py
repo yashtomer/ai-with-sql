@@ -3,6 +3,7 @@ import os
 import logging
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+from urllib.parse import quote_plus
 
 
 load_dotenv()
@@ -12,10 +13,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_PASSWORD = quote_plus(os.getenv("MYSQL_PASSWORD"))
 MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
-MYSQL_PORT = os.getenv("MYSQL_PORT", "3306")  
+MYSQL_PORT = os.getenv("MYSQL_PORT", "3306")
 
 # Construct the database URL
 DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"

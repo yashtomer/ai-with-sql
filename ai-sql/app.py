@@ -66,8 +66,8 @@ def execute_query(request: QueryRequest):
     return {"result": serial_result, "optimization_suggestion": result["optimization_suggestion"]}
 
 
-# #Run the FastAPI app
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+#Run the FastAPI app
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
     

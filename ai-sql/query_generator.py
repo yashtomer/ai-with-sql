@@ -12,8 +12,8 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 #Limit to avoid excessive token usage
-MAX_TABLES = 5
-MAX_COLUMN_PER_TABLE = 5
+MAX_TABLES = 10
+MAX_COLUMN_PER_TABLE = 10
 
 
 def clean_sql_output(sql):
@@ -34,9 +34,9 @@ def get_limited_schema(database=None):
 
     for database in databases:
         schema[database] = {}
-        tables = get_table_names(database).get("tables", [])[:MAX_TABLES]
+        tables = get_table_names(database).get("tables", [])
         for table in tables:
-            columns = get_columns(table, database).get("columns", [])[:MAX_COLUMN_PER_TABLE]
+            columns = get_columns(table, database).get("columns", [])
             schema[database][table] = columns
 
     return schema
@@ -58,25 +58,29 @@ def generate_sql_query(nl_query, database=None):
     schema_text = "\n".join([f"{db}.{table}: {', '.join(columns)}" for db, tables in schema.items() for table, columns in tables.items()])
 
     prompt = f"""
-    You are an expert SQL query generator. Convert the following user request into an optimized SQL query.
-    Ensure:
-      - Proper use of indexing where applicable.
-      - Use of efficient joins instead of nested queries.
-      - Use GROUP BY when aggregating are needed.
-      - Ensure SQL is valid and optimized for execution.
-    
+    You are an expert SQL query generator for a MySQL database. Your primary goal is to accurately translate natural language requests into optimized SQL queries, strictly adhering to the provided database schema.
+
+    Key Guidelines:
+    - Always use the most appropriate table for the requested data. For example, if the user asks about 'users', refer to the 'users' table.
+    - For questions like "How many X?", use COUNT(*) on the relevant table.
+    - Ensure SQL is valid, optimized, and uses efficient joins.
+    - Do NOT include any explanations or additional text, only the SQL query.
+
     Database Schema:
     {schema_text}
 
-    User Request: {nl_query}
+    Examples:
+    User Request: How many total users are registered?
+    SQL Query: SELECT COUNT(*) AS total_registered_users FROM users;
 
+    User Request: {nl_query}
     SQL Query:
     """
     try:
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a SQL optimization expert."},
+                {"role": "system", "content": "You are a SQL query generation expert. Only respond with the SQL query."},
                 {"role": "user", "content": prompt}
             ]
         )

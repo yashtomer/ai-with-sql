@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 
-API_URL = "http://localhost:8000"  # Update with your FastAPI URL
+API_URL = "http://127.0.0.1:8080"  # Update with your FastAPI URL
 
 #Set page title
 st.title("AI SQL Query Generator")
@@ -56,7 +56,7 @@ if selected_database:
 if st.button("Generate SQL Query"):
     if query_input:
         #Send request to FastAPI endpoint
-        response = requests.post("http://localhost:8000/generate_sql", json={"nl_query": query_input, "database": selected_database})
+        response = requests.post(f"{API_URL}/generate_sql", json={"nl_query": query_input, "database": selected_database})
         sql_query = response.json().get("sql_query")
         st.code(sql_query, language='sql')
 
@@ -65,7 +65,7 @@ if st.button("Generate SQL Query"):
 if "generated_sql" in st.session_state:
     if st.button("Execute SQL Query"):
         #Send request to execute the generated SQL query
-        response = requests.post("http://localhost:8000/execute_sql", json={"nl_query": st.session_state["generated_sql"]})
+        response = requests.post(f"{API_URL}/execute_sql", json={"nl_query": st.session_state["generated_sql"]})
         result = response.json().get("result", [])
 
         optimization_tips = response.json().get("optimization_suggestion", "No message returned.")
@@ -78,4 +78,4 @@ if "generated_sql" in st.session_state:
         st.subheader("Optimization Tips:")
         st.write(optimization_tips)
 else:
-    st.warning("Please generate a SQL query first by entering a natural language query.") 
+    st.warning("Please generate a SQL query first by entering a natural language query.")
