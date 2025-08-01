@@ -5,44 +5,46 @@ import pandas as pd
 
 API_URL = "http://127.0.0.1:8080"  # Update with your FastAPI URL
 
+# Add Aeologic logo
+st.sidebar.image("https://www.aeologic.com/images/aeologo.png", width=200)
+
 #Set page title
 st.title("AI SQL Query Generator")
 st.markdown("This app allows you to generate and execute SQL queries from natural language input.")
 
-#Input text box for user query 
-query_input = st.text_area("Enter your natural language query:")
 
 
 
-#Fetch avialable databases
+
+
+#Fetch available databases
 st.sidebar.header("Database Selection")
-if st.sidebar.button("List Databases"):
+databases = []
+try:
     response = requests.get(f"{API_URL}/list_databases")
-
     if response.status_code == 200:
-        database = response.json().get("databases", [])
-        st.sidebar.write("Available Databases:")
-        st.sidebar.write(database)
-    else:
-        st.sidebar.error("Failed to fetch databases.")
+        databases = response.json().get("databases", [])
+except requests.exceptions.ConnectionError:
+    st.sidebar.error("Could not connect to the FastAPI backend. Please ensure it's running.")
 
+selected_database = st.sidebar.selectbox("Select a Database", [""] + databases)
 
-#Select a database
-selected_database = st.sidebar.text_input("Enter Database Name", value="")
 if selected_database:
-    if st.sidebar.button("List Tables"):
+    st.session_state["selected_database"] = selected_database
+    tables = []
+    try:
         response = requests.get(f"{API_URL}/get_tables/{selected_database}")
         if response.status_code == 200:
             tables = response.json().get("tables", [])
-            st.sidebar.write("Tables in Database:")
-            st.sidebar.write(tables)
-        else:
-            st.sidebar.error("Failed to fetch tables.")
+    except requests.exceptions.ConnectionError:
+        st.sidebar.error("Could not connect to the FastAPI backend. Please ensure it's running.")
 
-    #Select a table
-    selected_table = st.sidebar.text_input("Enter Table Name", value="")
+    selected_table = st.sidebar.selectbox("Select a Table", [""] + tables)
+
     if selected_table:
-        if st.sidebar.button("List Columns"):
+        st.session_state["selected_table"] = selected_table
+        columns = []
+        try:
             response = requests.get(f"{API_URL}/get_columns?table_name={selected_table}&database={selected_database}")
             if response.status_code == 200:
                 columns = response.json().get("columns", [])
@@ -50,13 +52,39 @@ if selected_database:
                 st.sidebar.write(columns)
             else:
                 st.sidebar.error("Failed to fetch columns.")
-    
-    
+        except requests.exceptions.ConnectionError:
+            st.sidebar.error("Could not connect to the FastAPI backend. Please ensure it's running.")
+else:
+    st.session_state["selected_database"] = ""
+    st.session_state["selected_table"] = ""
+
+# Display sample questions based on selected database
+if st.session_state.get("selected_database"):
+    st.subheader(f"Sample Questions for {st.session_state.selected_database}:")
+    try:
+        response = requests.get(f"{API_URL}/get_sample_questions/{st.session_state.selected_database}")
+        if response.status_code == 200:
+            sample_questions = response.json().get("sample_questions", [])
+            if sample_questions:
+                for q in sample_questions:
+                    st.markdown(f"* {q}")
+            else:
+                st.info("No sample questions available for this database.")
+        else:
+            st.error("Failed to fetch sample questions.")
+    except requests.exceptions.ConnectionError:
+        st.error("Could not connect to the FastAPI backend to fetch sample questions. Please ensure it's running.")
+
+
+#Input text box for user query 
+query_input = st.text_area("Enter your natural language query:", key="nl_query_input_main")
+
+
 
 if st.button("Generate SQL Query"):
     if query_input:
         #Send request to FastAPI endpoint
-        response = requests.post(f"{API_URL}/generate_sql", json={"nl_query": query_input, "database": selected_database})
+        response = requests.post(f"{API_URL}/generate_sql", json={"nl_query": query_input, "database": st.session_state.get("selected_database")})
         sql_query = response.json().get("sql_query")
         st.code(sql_query, language='sql')
 

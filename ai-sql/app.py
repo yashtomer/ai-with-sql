@@ -65,6 +65,23 @@ def execute_query(request: QueryRequest):
     
     return {"result": serial_result, "optimization_suggestion": result["optimization_suggestion"]}
 
+@app.get("/get_sample_questions/{database_name}")
+async def get_sample_questions(database_name: str):
+    """API endpoint to get static sample questions."""
+    logging.debug(f"Returning static sample questions for database: {database_name}")
+    static_questions = [
+        "How many total users are registered?",
+        "What are the most common vehicle makes in the database?",
+        "How many renewal orders were placed last month?",
+        "What is the total value of all successful payments?",
+        "List all users who registered in the last 30 days.",
+        "Show me all vehicles associated with a specific user ID (e.g., user ID 123).",
+        "Which renewal orders are currently pending or incomplete?",
+        "Find all failed payment transactions and their corresponding error messages.",
+        "What is the average amount of a successful renewal payment?"
+    ]
+    return {"sample_questions": static_questions[:5]} # Return only the first 5 as requested earlier
+
 
 #Run the FastAPI app
 if __name__ == "__main__":
