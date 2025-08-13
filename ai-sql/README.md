@@ -1,10 +1,10 @@
-# AI-Powered SQL Query Generator
+# AI-Powered SQL Query Generator with Groq
 
-This project is a web-based application that leverages cloud or local Large Language Models (LLMs) to convert natural language questions into SQL queries. It provides a user-friendly interface to interact with your databases, generate queries, execute them, and receive optimization suggestions.
+This project is a web-based application that leverages Groq's fast inference capabilities to convert natural language questions into SQL queries. It provides a user-friendly interface to interact with your databases, generate queries, execute them, and receive optimization suggestions.
 
 ## Features
 
-*   **Natural Language to SQL:** Convert plain English questions into complex SQL queries.
+*   **Natural Language to SQL:** Convert plain English questions into complex SQL queries using Groq.
 *   **Database Agnostic:** Connects to your MySQL database.
 *   **Web-Based UI:** An intuitive interface built with Streamlit for easy interaction.
 *   **API-Driven:** A robust backend built with FastAPI provides a clear separation of concerns and allows for other clients to be built on top of it.
@@ -18,7 +18,7 @@ The application is composed of two main parts:
 
 1.  **Backend API (FastAPI):**
     *   Exposes endpoints for listing databases, tables, and columns.
-    *   Handles the logic for generating SQL queries using an OpenAI-compatible API (supports Together, Groq, Fireworks, DeepInfra, Mistral, and others). Defaults to an open-source model hosted on Together AI.
+    *   Handles the logic for generating SQL queries using Groq.
     *   Executes the generated queries against the database.
     *   Provides optimization suggestions.
 
@@ -58,7 +58,7 @@ pip install -r requirements.txt
 
 **4. Configure Environment Variables:**
 
-Create a `.env` file in the root of the project directory and add the following environment variables. This file will store your database credentials and LLM configuration.
+Create a `.env` file in the root of the project directory and add the following environment variables. This file will store your database credentials and Groq API key.
 
 ```
 MYSQL_USER="your_mysql_user"
@@ -67,24 +67,8 @@ MYSQL_DATABASE="your_mysql_database"
 MYSQL_HOST="localhost"
 MYSQL_PORT="3306"
 
-# LLM configuration (OpenAI-compatible)
-OPENAI_API_KEY="your_provider_api_key"
-# OpenAI-compatible cloud endpoint (default is Together)
-# Examples:
-# Together.ai:         https://api.together.xyz/v1
-# Groq:                https://api.groq.com/openai/v1
-# Fireworks.ai:        https://api.fireworks.ai/inference/v1
-# DeepInfra:           https://api.deepinfra.com/v1/openai
-# Mistral (compatible): https://api.mistral.ai/v1
-OPENAI_BASE_URL="https://api.together.xyz/v1"
-
-# Model name per provider
-# Examples:
-# Together:  meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
-# Groq:      llama-3.1-8b-instant
-# Fireworks: accounts/fireworks/models/llama-v3p1-8b-instruct
-# DeepInfra: meta-llama/Meta-Llama-3.1-8B-Instruct
-LLM_MODEL="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+GROQ_API_KEY="your_groq_api_key"
+LLM_MODEL="llama3-70b-8192"
 ```
 
 Replace the placeholder values with your actual credentials.
@@ -98,10 +82,10 @@ The application consists of a backend server and a frontend UI. You'll need to r
 The backend is a FastAPI application. You can run it using `uvicorn`.
 
 ```bash
-uvicorn app:app --reload
+uvicorn app:app --reload --port 8001
 ```
 
-The API will be available at `http://localhost:8000`.
+The API will be available at `http://localhost:8001`.
 
 **2. Run the Frontend UI:**
 
@@ -117,18 +101,24 @@ The user interface will be available at `http://localhost:8501`.
 
 The FastAPI backend provides the following endpoints:
 
-*   `GET /list_databases`: Lists all available databases.
-*   `GET /get_tables/{database}`: Lists all tables in a specified database.
-*   `GET /get_columns?table_name={table_name}&database={database}`: Lists all columns in a specified table.
-*   `POST /generate_sql`: Generates a SQL query from a natural language query.
-*   `POST /execute_sql`: Executes a SQL query and returns the results.
+*   `GET /api/databases`: Lists all available databases.
+*   `GET /api/databases/{database}/tables`: Lists all tables in a specified database.
+*   `GET /api/tables/{table_name}/columns`: Lists all columns in a specified table.
+*   `POST /api/generate`: Generates a SQL query from a natural language query.
+*   `POST /api/validate`: Validates a SQL query.
+*   `POST /api/execute`: Executes a SQL query and returns the results.
+*   `POST /api/generate-and-execute`: Generates and executes a SQL query in one step.
+*   `POST /api/explain`: Explains a SQL query in plain English.
+*   `POST /api/optimize`: Provides optimization suggestions for a SQL query.
+*   `GET /api/llm/info`: Returns information about the active LLM.
+*   `GET /api/health`: Checks the health of the API.
 
 ## Technologies Used
 
 *   **Backend:** FastAPI, Uvicorn
 *   **Frontend:** Streamlit
 *   **Database:** SQLAlchemy, MySQL Connector
-*   **AI:** OpenAI-compatible LLM (configurable via env)
+*   **AI:** Groq
 *   **Other:** python-dotenv, sqlparse
 
 ---

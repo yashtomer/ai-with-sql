@@ -1,6 +1,6 @@
 # AI-Powered SQL Query Generator
 
-This project is a web-based application that leverages the power of OpenAI's GPT-4 to convert natural language questions into SQL queries. It provides a user-friendly interface to interact with your databases, generate queries, execute them, and receive optimization suggestions.
+This project is a web-based application that leverages cloud or local Large Language Models (LLMs) to convert natural language questions into SQL queries. It provides a user-friendly interface to interact with your databases, generate queries, execute them, and receive optimization suggestions.
 
 ## Features
 
@@ -18,7 +18,7 @@ The application is composed of two main parts:
 
 1.  **Backend API (FastAPI):**
     *   Exposes endpoints for listing databases, tables, and columns.
-    *   Handles the logic for generating SQL queries using OpenAI's API.
+    *   Handles the logic for generating SQL queries using an OpenAI-compatible API (supports OpenAI, Together, Groq, Fireworks, DeepInfra, and others).
     *   Executes the generated queries against the database.
     *   Provides optimization suggestions.
 
@@ -58,7 +58,7 @@ pip install -r requirements.txt
 
 **4. Configure Environment Variables:**
 
-Create a `.env` file in the root of the project directory and add the following environment variables. This file will store your database credentials and OpenAI API key.
+Create a `.env` file in the root of the project directory and add the following environment variables. This file will store your database credentials and LLM configuration.
 
 ```
 MYSQL_USER="your_mysql_user"
@@ -66,7 +66,25 @@ MYSQL_PASSWORD="your_mysql_password"
 MYSQL_DATABASE="your_mysql_database"
 MYSQL_HOST="localhost"
 MYSQL_PORT="3306"
-OPENAI_API_KEY="your_openai_api_key"
+
+# LLM configuration (OpenAI-compatible)
+OPENAI_API_KEY="your_provider_api_key"
+# Optional: point to any OpenAI-compatible cloud endpoint
+# Examples:
+# Together.ai:       https://api.together.xyz/v1
+# Groq:              https://api.groq.com/openai/v1
+# Fireworks.ai:      https://api.fireworks.ai/inference/v1
+# DeepInfra:         https://api.deepinfra.com/v1/openai
+# Mistral (compatible): https://api.mistral.ai/v1
+OPENAI_BASE_URL="https://api.together.xyz/v1"
+
+# Model name per provider
+# Examples:
+# Together:  meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo
+# Groq:      llama-3.1-8b-instant
+# Fireworks: accounts/fireworks/models/llama-v3p1-8b-instruct
+# DeepInfra: meta-llama/Meta-Llama-3.1-8B-Instruct
+LLM_MODEL="llama-3.1-8b-instruct"
 ```
 
 Replace the placeholder values with your actual credentials.
@@ -110,7 +128,7 @@ The FastAPI backend provides the following endpoints:
 *   **Backend:** FastAPI, Uvicorn
 *   **Frontend:** Streamlit
 *   **Database:** SQLAlchemy, MySQL Connector
-*   **AI:** OpenAI (GPT-4)
+*   **AI:** OpenAI-compatible LLM (configurable via env)
 *   **Other:** python-dotenv, sqlparse
 
 ---
