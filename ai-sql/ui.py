@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 
 # Configuration
-API_URL = "http://localhost:8001"  # Update with your FastAPI URL
+API_URL = "http://localhost:8080"  # Update with your FastAPI URL
 
 # Set page configuration
 st.set_page_config(
