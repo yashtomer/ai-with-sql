@@ -133,4 +133,4 @@ The FastAPI backend provides the following endpoints:
 
 ---
 
-Developed by [Yash](https://www.linkedin.com/in/yash-tomar-sr-manager-technology-97380417)
+Developed by [Yash(Aeologic) ](https://www.linkedin.com/in/yash-tomar-sr-manager-technology-97380417)
