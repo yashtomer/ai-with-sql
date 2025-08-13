@@ -14,6 +14,18 @@ query_input = st.text_area("Enter your natural language query:")
 
 
 
+# Show active LLM configuration
+with st.expander("Active LLM Configuration", expanded=True):
+    try:
+        info = requests.get(f"{API_URL}/llm_info", timeout=10).json()
+        st.write({
+            "Model": info.get("model"),
+            "Base URL": info.get("base_url"),
+            "Custom base URL": info.get("using_custom_base_url"),
+        })
+    except Exception as e:
+        st.warning(f"Could not fetch LLM info: {e}")
+
 #Fetch avialable databases
 st.sidebar.header("Database Selection")
 if st.sidebar.button("List Databases"):

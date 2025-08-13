@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import os
 import logging
 from database import list_databases, get_table_names, get_columns
 from query_generator import generate_sql_query, execution_query
@@ -6,7 +7,14 @@ from fastapi import FastAPI, Query, HTTPException #Add Query here
 
 
 from pydantic import BaseModel
-from query_generator import generate_sql_query, validate_sql_query, suggest_index, execution_query
+from query_generator import (
+    generate_sql_query,
+    validate_sql_query,
+    suggest_index,
+    execution_query,
+    LLM_MODEL,
+    OPENAI_BASE_URL,
+)
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -64,6 +72,28 @@ def execute_query(request: QueryRequest):
     serial_result = [dict(row._mapping) for row in result["results"]]
     
     return {"result": serial_result, "optimization_suggestion": result["optimization_suggestion"]}
+
+
+@app.get("/llm_info")
+def llm_info():
+    """Return active LLM configuration for visibility in UI."""
+    return {
+        "model": LLM_MODEL,
+        "base_url": OPENAI_BASE_URL,
+        "using_custom_base_url": True,
+    }
+
+
+@app.get("/health")
+def health():
+    """Simple health check, including presence of LLM configuration."""
+    has_api_key = bool(os.getenv("OPENAI_API_KEY"))
+    return {
+        "status": "ok",
+        "llm_model": LLM_MODEL,
+        "llm_base_url": OPENAI_BASE_URL,
+        "has_api_key": has_api_key,
+    }
 
 
 # #Run the FastAPI app

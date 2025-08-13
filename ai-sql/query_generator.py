@@ -1,5 +1,5 @@
 import os 
-import openai
+from openai import OpenAI
 import sqlparse
 import re
 from dotenv import load_dotenv
@@ -9,7 +9,15 @@ from database import engine, list_databases, get_table_names, get_columns
 
 load_dotenv()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Configure OpenAI-compatible client (supports OpenAI, Ollama, LM Studio, etc.)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# Default to Together AI (OpenAI-compatible) so we use an open-source model hosted in the cloud by default
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.together.xyz/v1")
+# Default open-source instruct model name (Together naming). Override via LLM_MODEL env if desired
+LLM_MODEL = os.getenv("LLM_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo")
+
+# Always construct the client with an explicit base_url for consistency across providers
+client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
 
 #Limit to avoid excessive token usage
 MAX_TABLES = 5
@@ -73,8 +81,8 @@ def generate_sql_query(nl_query, database=None):
     SQL Query:
     """
     try:
-        response = openai.chat.completions.create(
-            model="gpt-4",
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
             messages=[
                 {"role": "system", "content": "You are a SQL optimization expert."},
                 {"role": "user", "content": prompt}
