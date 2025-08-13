@@ -1,5 +1,5 @@
 import os 
-from openai import OpenAI
+from groq import Groq
 import sqlparse
 import re
 from dotenv import load_dotenv
@@ -9,19 +9,17 @@ from database import engine, list_databases, get_table_names, get_columns
 
 load_dotenv()
 
-# Configure OpenAI-compatible client (supports OpenAI, Ollama, LM Studio, etc.)
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-# Default to Together AI (OpenAI-compatible) so we use an open-source model hosted in the cloud by default
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.together.xyz/v1")
-# Default open-source instruct model name (Together naming). Override via LLM_MODEL env if desired
-LLM_MODEL = os.getenv("LLM_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo")
+# Configure Groq client
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+# Use a model that's good at code/SQL generation - Llama models work well for SQL
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3-70b-8192")  # or "mixtral-8x7b-32768", "llama3-8b-8192"
 
-# Always construct the client with an explicit base_url for consistency across providers
-client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+# Initialize Groq client
+client = Groq(api_key=GROQ_API_KEY)
 
 #Limit to avoid excessive token usage
-MAX_TABLES = 5
-MAX_COLUMN_PER_TABLE = 5
+MAX_TABLES = 50
+MAX_COLUMN_PER_TABLE = 100
 
 
 def clean_sql_output(sql):
@@ -29,6 +27,7 @@ def clean_sql_output(sql):
 
     # Remove markdown code block formatting
     clean_query = re.sub(r"```sql\n(.*?)\n```", r"\1", sql, flags=re.DOTALL)
+    clean_query = re.sub(r"```\n(.*?)\n```", r"\1", clean_query, flags=re.DOTALL)
 
     # Extract only valid SQL (handle AI explanations)
     sql_match = re.search(r"SELECT .*?;", clean_query, re.DOTALL | re.IGNORECASE)
@@ -60,33 +59,41 @@ def validate_sql_query(sql):
         return False, str(e)
 
 def generate_sql_query(nl_query, database=None):
-    """Convert natural language query to an optimized SQL query"""
+    """Convert natural language query to an optimized SQL query using Groq"""
     schema = get_limited_schema(database)
 
     schema_text = "\n".join([f"{db}.{table}: {', '.join(columns)}" for db, tables in schema.items() for table, columns in tables.items()])
 
-    prompt = f"""
-    You are an expert SQL query generator. Convert the following user request into an optimized SQL query.
-    Ensure:
-      - Proper use of indexing where applicable.
-      - Use of efficient joins instead of nested queries.
-      - Use GROUP BY when aggregating are needed.
-      - Ensure SQL is valid and optimized for execution.
+    # Enhanced prompt for better SQL generation
+    system_prompt = """You are an expert SQL query generator specialized in creating optimized, production-ready SQL queries. 
     
-    Database Schema:
-    {schema_text}
+    Guidelines:
+    - Generate only valid, executable SQL
+    - Use proper indexing strategies
+    - Prefer JOINs over subqueries when possible
+    - Use appropriate aggregate functions and GROUP BY
+    - Include proper WHERE clause filtering
+    - Return only the SQL query without explanations
+    - End queries with semicolon"""
 
-    User Request: {nl_query}
+    user_prompt = f"""Database Schema:
+{schema_text}
 
-    SQL Query:
-    """
+Convert this natural language request to an optimized SQL query:
+{nl_query}
+
+Return only the SQL query:"""
+
     try:
         response = client.chat.completions.create(
             model=LLM_MODEL,
             messages=[
-                {"role": "system", "content": "You are a SQL optimization expert."},
-                {"role": "user", "content": prompt}
-            ]
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.1,  # Low temperature for more consistent SQL generation
+            max_tokens=1024,
+            top_p=0.95
         )
         raw_sql_query = response.choices[0].message.content.strip()
 
@@ -95,7 +102,7 @@ def generate_sql_query(nl_query, database=None):
         return clean_sql
     
     except Exception as e:
-        print(f"Error generating SQL query: {e}")
+        print(f"Error generating SQL query with Groq: {e}")
         return None
 
 def suggest_index(sql):
@@ -111,12 +118,49 @@ def suggest_index(sql):
         for row in execution_plan:
             print(row)
 
-        return "Consider adding indexe on frequenty used WHERE condition."
+        # Enhanced index suggestion using Groq
+        return generate_index_suggestions(sql, execution_plan)
     except Exception as e:
-        return (f"Could not generate execution plan : {e}")
+        return f"Could not generate execution plan: {e}"
+
+def generate_index_suggestions(sql, execution_plan=None):
+    """Generate index suggestions using Groq based on the SQL query."""
+    
+    system_prompt = """You are a database optimization expert. Analyze SQL queries and suggest appropriate indexes to improve performance.
+    
+    Focus on:
+    - WHERE clause columns
+    - JOIN columns
+    - ORDER BY columns
+    - GROUP BY columns
+    - Foreign key relationships"""
+
+    plan_text = "\n".join([str(row) for row in execution_plan]) if execution_plan else "No execution plan available"
+    
+    user_prompt = f"""SQL Query:
+{sql}
+
+Execution Plan:
+{plan_text}
+
+Suggest specific indexes to improve this query's performance. Return only the index suggestions:"""
+
+    try:
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=512
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not generate index suggestions: {e}"
     
 def execution_query(sql):
-    """Execute a validate and optimized SQL query."""
+    """Execute a validated and optimized SQL query."""
     
     is_valid, error = validate_sql_query(sql)
     if not is_valid:
@@ -129,7 +173,7 @@ def execution_query(sql):
             result = connection.execute(text(sql))
             fetched_results = result.fetchall()
 
-        #Open a new connection for query optimization (avoid "command out of sync" error)
+        # Open a new connection for query optimization (avoid "command out of sync" error)
         index_suggestion = suggest_index(sql)
 
         return {
@@ -139,22 +183,61 @@ def execution_query(sql):
     except SQLAlchemyError as e:
         print(f"Error executing SQL query: {e}")
         return None
+
+def explain_query(sql):
+    """Get detailed explanation of what the SQL query does using Groq."""
+    
+    system_prompt = """You are a SQL expert. Explain what SQL queries do in plain English, breaking down each part of the query."""
+    
+    user_prompt = f"""Explain this SQL query in simple terms:
+{sql}
+
+Break down:
+- What data it retrieves
+- Which tables it uses
+- Any joins or conditions
+- What the result will look like"""
+
+    try:
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=512
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not explain query: {e}"
     
 if __name__ == "__main__":
     # Example usage
     nl_query = "Get all users with their email addresses and the number of orders they have made."
+    
+    print("Generating SQL query...")
     sql_query = generate_sql_query(nl_query)
     
     if sql_query:
-        print(f"Generated SQL Query: {sql_query}")
+        print(f"\nGenerated SQL Query:\n{sql_query}")
         
+        # Get explanation
+        explanation = explain_query(sql_query)
+        print(f"\nQuery Explanation:\n{explanation}")
+        
+        # Execute query
         execution_result = execution_query(sql_query)
         
         if execution_result:
-            print("Execution Results:")
-            for row in execution_result["results"]:
-                print(row)
-            print("Optimization Suggestion:", execution_result["optimization_suggestion"])
+            print(f"\nExecution Results ({len(execution_result['results'])} rows):")
+            for i, row in enumerate(execution_result["results"][:5]):  # Show first 5 rows
+                print(f"  {i+1}: {row}")
+            
+            if len(execution_result["results"]) > 5:
+                print(f"  ... and {len(execution_result['results']) - 5} more rows")
+                
+            print(f"\nOptimization Suggestions:\n{execution_result['optimization_suggestion']}")
         else:
             print("Failed to execute the SQL query.")
     else:

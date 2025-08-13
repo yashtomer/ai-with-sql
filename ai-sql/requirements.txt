@@ -30,3 +30,6 @@ loguru
 pytest
 sqlparse
 streamlit
+
+#groq
+groq
