@@ -11,9 +11,9 @@ from database import engine, list_databases, get_table_names, get_columns
 
 load_dotenv()
 
-#Limit to avoid excessive token usage
-MAX_TABLES = 50
-MAX_COLUMN_PER_TABLE = 100
+# Limit to avoid excessive token usage (66k token overhead issue)
+MAX_TABLES = 15
+MAX_COLUMN_PER_TABLE = 30
 SUPPORTED_PROVIDERS = {"openai", "groq", "gemini", "anthropic"}
 
 
@@ -29,17 +29,42 @@ def clean_sql_output(sql):
 
     return sql_match.group(0) if sql_match else clean_query.strip()
 
-def get_limited_schema(database=None):
-    """Get a limited schema with a maximum number of tables and columns."""
+def get_limited_schema(database=None, nl_query=None):
+    """Get a limited schema prioritizing query-relevant tables."""
     schema = {}
     databases = [database] if database else list_databases().get("databases", [])
+    
+    # Exclude massive system databases that balloon the token size
+    system_dbs = {'information_schema', 'mysql', 'performance_schema', 'sys'}
+    databases = [db for db in databases if db not in system_dbs]
 
-    for database in databases:
-        schema[database] = {}
-        tables = get_table_names(database).get("tables", [])[:MAX_TABLES]
+    total_tables_added = 0
+
+    for db in databases:
+        if total_tables_added >= MAX_TABLES:
+            break
+            
+        schema[db] = {}
+        tables = get_table_names(db).get("tables", [])
+        
+        if nl_query:
+            query_lower = nl_query.lower()
+            # Prioritize tables whose exact name or space-replaced name appears in query
+            matched = [t for t in tables if t.lower() in query_lower or t.replace('_', ' ').lower() in query_lower]
+            unmatched = [t for t in tables if t not in matched]
+            tables = matched + unmatched
+
         for table in tables:
-            columns = get_columns(table, database).get("columns", [])[:MAX_COLUMN_PER_TABLE]
-            schema[database][table] = columns
+            if total_tables_added >= MAX_TABLES:
+                break
+                
+            columns = get_columns(table, db).get("columns", [])
+            # Filter out standard boilerplate columns to save tokens
+            ignored_cols = {'created_at', 'updated_at', 'deleted_at', 'created_by', 'updated_by'}
+            columns = [c for c in columns if c.lower() not in ignored_cols][:MAX_COLUMN_PER_TABLE]
+            
+            schema[db][table] = columns
+            total_tables_added += 1
 
     return schema
 
@@ -158,7 +183,7 @@ def _call_llm(system_prompt, user_prompt, llm_config, temperature=0.2, max_token
 
 def generate_sql_query(nl_query, database=None, llm_config=None):
     """Convert natural language query to an optimized SQL query."""
-    schema = get_limited_schema(database)
+    schema = get_limited_schema(database, nl_query)
 
     schema_text = "\n".join([f"{db}.{table}: {', '.join(columns)}" for db, tables in schema.items() for table, columns in tables.items()])
 
