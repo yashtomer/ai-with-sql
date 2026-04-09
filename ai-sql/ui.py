@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 
 # Configuration
-API_URL = "http://localhost:8080"  # Update with your FastAPI URL
+API_URL = "http://localhost:8000"  # Update with your FastAPI URL
 
 # Set page configuration
 st.set_page_config(
@@ -79,6 +79,8 @@ if 'llm_model' not in st.session_state:
     st.session_state.llm_model = ""
 if 'llm_api_key' not in st.session_state:
     st.session_state.llm_api_key = ""
+if 'nl_query_input_area' not in st.session_state:
+    st.session_state.nl_query_input_area = ""
 
 # Helper functions
 def make_api_request(endpoint, method="GET", data=None, timeout=30):
@@ -279,12 +281,34 @@ if selected_database:
 # Main query interface
 st.header("💬 Natural Language Query")
 
+# GetLicense DB Specific Questions
+st.subheader("🏢 GetLicense DB Insights")
+q_col1, q_col2 = st.columns(2)
+
+getlicense_questions = [
+    ("💰 Agent Commission Audit", "Calculate the total commission earned by each agent in the current month by joining agent_transactions with commission_ranges. Identify which agents have reached a top-tier commission bracket but still have more than 10% of their transactions in a 'pending' state in payment_webhook."),
+    ("⏳ Renewal Bottleneck Analysis", "Identify renewal_orders that have taken longer than the average processing time to move from 'initiated' to 'completed'. Cross-reference these with the scrape_status and failed_vehicle_fetches tables to find delays by province."),
+    ("💳 EMI Health & Payments", "For all active installment_plans, generate a report showing the percentage of payment_emis that were successfully processed versus failed. Filter for owners who have more than 2 vehicles in the vehicles table."),
+    ("📉 Province Fee Volatility", "Find the top 3 provinces with the most frequent price changes in the last 6 months using the province_master_rate_history table. Show the variance for 'Heavy Vehicle' categories."),
+    ("📄 Document & Debt Compliance", "List all owners who have missing entries in the documents table for at least one of their vehicles, but currently have an outstanding balance in natis_payment_transactions.")
+]
+
+for i, (icon, query) in enumerate(getlicense_questions):
+    with q_col1 if i % 2 == 0 else q_col2:
+        button_label = f"{icon} {query}"
+        if len(button_label) > 60:
+            button_label = button_label[:57] + "..."
+            
+        if st.button(button_label, key=f"gl_q_{i}", help=query):
+            st.session_state.nl_query_input_area = query
+
 # Query input with example
 query_input = st.text_area(
     "Enter your natural language query:",
     height=100,
     placeholder="Example: Get all users who placed orders in the last 30 days with their total order amount",
-    help="Describe what data you want to retrieve in plain English"
+    help="Describe what data you want to retrieve in plain English",
+    key="nl_query_input_area"
 )
 
 # Quick example queries
@@ -293,18 +317,15 @@ example_col1, example_col2, example_col3 = st.columns(3)
 
 with example_col1:
     if st.button("👥 User Statistics"):
-        query_input = "Show me the total number of users and their average age"
-        st.rerun()
+        st.session_state.nl_query_input_area = "Show me the total number of users and their average age"
 
 with example_col2:
     if st.button("📈 Sales Report"):
-        query_input = "Get top 10 products by sales revenue this month"
-        st.rerun()
+        st.session_state.nl_query_input_area = "Get top 10 products by sales revenue this month"
 
 with example_col3:
     if st.button("🔍 Recent Activity"):
-        query_input = "Find all orders placed in the last 7 days with customer details"
-        st.rerun()
+        st.session_state.nl_query_input_area = "Find all orders placed in the last 7 days with customer details"
 
 # Query generation and execution
 if st.button("✨ Generate SQL Query", key="generate_btn"):
