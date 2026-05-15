@@ -13,14 +13,14 @@ function loadEnv(filePath) {
 }
 
 const env = loadEnv(path.join(__dirname, '.env'));
-const API_PORT = env.API_PORT || 8080;
+const BACKEND_PORT = env.BACKEND_PORT || 8080;
 
 module.exports = {
   apps: [
     {
       name: "ai-sql-backend",
       script: "./venv/bin/python3",
-      args: `-m uvicorn app:app --host 0.0.0.0 --port ${API_PORT}`,
+      args: `-m uvicorn app:app --host 0.0.0.0 --port ${BACKEND_PORT}`,
       cwd: "./",
       watch: false,
       env: {
