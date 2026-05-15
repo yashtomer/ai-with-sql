@@ -30,7 +30,7 @@ const DatabaseExplorerPage = () => {
   const fetchDatabases = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/databases`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/databases`);
       const data = await response.json();
       if (response.ok) {
         setDatabases(data.databases || []);
@@ -51,7 +51,7 @@ const DatabaseExplorerPage = () => {
     setColumns([]);
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/databases/${dbName}/tables`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/databases/${dbName}/tables`);
       const data = await response.json();
       if (response.ok) {
         setTables(data.tables || []);
@@ -69,7 +69,7 @@ const DatabaseExplorerPage = () => {
     setSelectedTable(tableName);
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/tables/${tableName}/columns?database=${selectedDb}`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tables/${tableName}/columns?database=${selectedDb}`);
       const data = await response.json();
       if (response.ok) {
         setColumns(data.columns || []);

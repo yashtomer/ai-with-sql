@@ -51,7 +51,7 @@ const DashboardPage = () => {
   const fetchDatabases = async () => {
     setIsLoadingDatabases(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/databases`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/databases`);
       const data = await response.json();
       if (response.ok) {
         setDatabases(data.databases || []);
@@ -77,7 +77,7 @@ const DashboardPage = () => {
     setResults(null);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/generate`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -111,7 +111,7 @@ const DashboardPage = () => {
     setError('');
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/execute`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
