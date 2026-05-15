@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
-from database import list_databases, get_table_names, get_columns
+from database import list_databases, get_table_names, get_columns, verify_user
 from query_generator import (
     generate_sql_query,
     validate_sql_query,
@@ -35,6 +35,10 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Pydantic models
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 class LLMConfig(BaseModel):
     provider: str
     model: str
@@ -68,6 +72,22 @@ def _llm_config_to_dict(llm_config: Optional[LLMConfig]) -> Optional[Dict[str, s
     if hasattr(llm_config, "model_dump"):
         return llm_config.model_dump()
     return llm_config.dict()
+
+# Authentication endpoints
+@app.post("/api/login")
+def login(request: LoginRequest):
+    """API endpoint to authenticate users."""
+    logger.debug(f"Login attempt for email: {request.email}")
+    user = verify_user(request.email, request.password)
+    if user:
+        # In a real app, generate a JWT. For this project, return user info.
+        return {
+            "status": "success",
+            "user": user,
+            "token": "mock-jwt-token-12345" # Placeholder token
+        }
+    else:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
 # Database endpoints
 @app.get("/api/databases")
