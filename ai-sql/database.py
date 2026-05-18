@@ -67,7 +67,28 @@ def get_columns(table_name, database=None):
             return {"columns": [row[0] for row in result]}
     except Exception as e:
         logging.error(f"Error fetching columns for table {table_name}: {e}")
-        return {"error": str(e)}    
+        return {"error": str(e)}
+
+# Function to verify user credentials
+def verify_user(email, password):
+    try:
+        with engine.connect() as connection:
+            query = text("SELECT id, name, email, password FROM users WHERE email = :email")
+            result = connection.execute(query, {"email": email}).fetchone()
+            
+            if result:
+                # In a real app, use hashing. For this project, comparing directly as requested.
+                db_id, db_name, db_email, db_password = result
+                if db_password == password:
+                    return {
+                        "id": db_id,
+                        "name": db_name,
+                        "email": db_email
+                    }
+            return None
+    except Exception as e:
+        logging.error(f"Error verifying user: {e}")
+        return None
 
 
 
