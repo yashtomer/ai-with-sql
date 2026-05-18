@@ -1,3 +1,4 @@
+import hashlib
 from multiprocessing import context
 import os
 import logging
@@ -69,6 +70,32 @@ def get_columns(table_name, database=None):
         logging.error(f"Error fetching columns for table {table_name}: {e}")
         return {"error": str(e)}
 
+def hash_password(password: str) -> str:
+    """Hash a password using PBKDF2 with SHA-256 and a random salt."""
+    salt = os.urandom(16)
+    pw_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+    return f"pbkdf2_sha256$100000${salt.hex()}${pw_hash.hex()}"
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash (supporting PBKDF2 and raw fallback)."""
+    if not hashed_password:
+        return False
+    
+    if hashed_password.startswith("pbkdf2_sha256$"):
+        try:
+            parts = hashed_password.split('$')
+            if len(parts) == 4:
+                _, iterations, salt_hex, hash_hex = parts
+                iterations = int(iterations)
+                salt = bytes.fromhex(salt_hex)
+                pw_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, iterations)
+                return pw_hash.hex() == hash_hex
+        except Exception as e:
+            logging.error(f"Error verifying password hash: {e}")
+            return False
+            
+    return hashed_password == password
+
 # Function to verify user credentials
 def verify_user(email, password):
     try:
@@ -77,9 +104,8 @@ def verify_user(email, password):
             result = connection.execute(query, {"email": email}).fetchone()
             
             if result:
-                # In a real app, use hashing. For this project, comparing directly as requested.
                 db_id, db_name, db_email, db_password = result
-                if db_password == password:
+                if verify_password(password, db_password):
                     return {
                         "id": db_id,
                         "name": db_name,

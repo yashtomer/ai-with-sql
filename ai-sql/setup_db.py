@@ -3,6 +3,7 @@ import logging
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
+from database import hash_password
 
 # Load environment variables
 load_dotenv()
@@ -66,8 +67,8 @@ def setup_database():
                 result = conn.execute(check_user, {"email": ADMIN_EMAIL}).fetchone()
 
                 if not result:
-                    # In a real app, use password hashing. 
-                    # For this project, we'll store it directly as requested or use a simple hash.
+                    # Hash the password securely
+                    hashed_password = hash_password(ADMIN_PASSWORD)
                     insert_user = text("""
                     INSERT INTO users (name, email, password) 
                     VALUES (:name, :email, :password)
@@ -75,12 +76,25 @@ def setup_database():
                     conn.execute(insert_user, {
                         "name": ADMIN_NAME,
                         "email": ADMIN_EMAIL,
-                        "password": ADMIN_PASSWORD
+                        "password": hashed_password
                     })
                     conn.commit()
-                    logger.info(f"Admin user '{ADMIN_EMAIL}' seeded successfully.")
+                    logger.info(f"Admin user '{ADMIN_EMAIL}' seeded successfully with a secure hashed password.")
                 else:
-                    logger.info(f"Admin user '{ADMIN_EMAIL}' already exists.")
+                    # If the admin user exists, verify if their password is raw and migrate it to a secure hash if so
+                    get_pw = text("SELECT password FROM users WHERE email = :email")
+                    current_pw = conn.execute(get_pw, {"email": ADMIN_EMAIL}).fetchone()[0]
+                    if not current_pw.startswith("pbkdf2_sha256$"):
+                        hashed_password = hash_password(ADMIN_PASSWORD)
+                        update_pw = text("UPDATE users SET password = :password WHERE email = :email")
+                        conn.execute(update_pw, {
+                            "password": hashed_password,
+                            "email": ADMIN_EMAIL
+                        })
+                        conn.commit()
+                        logger.info(f"Existing admin user '{ADMIN_EMAIL}' password successfully migrated to a secure hash.")
+                    else:
+                        logger.info(f"Admin user '{ADMIN_EMAIL}' already exists with a secure hashed password.")
             else:
                 logger.warning("Admin credentials not found in .env. Skipping seeding.")
 
